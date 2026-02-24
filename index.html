@@ -363,6 +363,8 @@
                 const stored = localStorage.getItem('lifeReceipts');
                 if (stored) {
                     receipts = JSON.parse(stored);
+                    // 按时间倒序排序（id是时间戳，越大越新）
+                    receipts.sort((a, b) => b.id - a.id);
                     // 如果有保存的收据，显示"我的收据"区域并渲染
                     if (receipts.length > 0) {
                         document.getElementById('my-receipts-section').classList.remove('hidden');
@@ -652,8 +654,8 @@
                 completedItems: [] // 存储已完成事项的索引
             };
             
-            // 添加到数组
-            receipts.push(receiptData);
+            // 添加到数组（unshift添加到开头，实现倒序）
+            receipts.unshift(receiptData);
             
             // 保存到 localStorage
             saveReceiptsToStorage();
