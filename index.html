@@ -55,6 +55,152 @@
         input, button {
             font-family: 'Courier New', monospace;
         }
+        
+        /* 小票缩略图样式 */
+        .receipt-thumbnail {
+            transform: rotate(-2deg);
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            /* 使用 GPU 加速渲染，让旋转后的文字更清晰 */
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+        }
+        
+        .receipt-thumbnail:hover {
+            transform: rotate(0deg) translateY(-5px);
+        }
+        
+        .receipt-thumbnail:hover .delete-receipt-btn {
+            opacity: 1;
+        }
+        
+        /* 交互式小票卡片样式 */
+        .receipt-card {
+            width: 280px;
+            min-height: 450px;
+            font-family: 'Courier New', monospace;
+            background-color: white;
+            padding: 24px;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            /* 文字抗锯齿优化 */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+        
+        .receipt-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .receipt-card .barcode-line {
+            min-width: 1px;
+        }
+        
+        /* 模态框中的小票 */
+        .modal-receipt {
+            width: 320px;
+            min-height: 500px;
+            font-family: 'Courier New', monospace;
+            background-color: white;
+            padding: 32px;
+            position: relative;
+        }
+        
+        /* 待办事项完成状态样式 */
+        .todo-item {
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 4px 8px;
+            margin: -4px -8px;
+            border-radius: 4px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .todo-item:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+        
+        .todo-item:active {
+            transform: scale(0.98);
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        /* 墨水笔划效果 - 使用SVG实现 */
+        .todo-item.completed {
+            color: #999;
+        }
+        
+        .todo-item.completed .todo-text {
+            position: relative;
+        }
+        
+        /* 墨水笔划SVG */
+        .ink-stroke {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            transform: translateY(-50%);
+            pointer-events: none;
+            overflow: visible;
+        }
+        
+        .ink-stroke path {
+            fill: none;
+            stroke: #333;
+            stroke-width: 0.75;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            opacity: 0.7;
+            /* 初始状态：线条长度为0 */
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+        }
+        
+        /* 动画类 */
+        .ink-stroke.animating path {
+            animation: inkStrokeDraw 0.6s ease-out forwards;
+        }
+        
+        @keyframes inkStrokeDraw {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+        
+        /* 已完成的墨水笔划 */
+        .todo-item.completed .ink-stroke path {
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 0.6s ease-out;
+        }
+        
+        /* 移动设备优化 */
+        @media (max-width: 768px) {
+            .todo-item {
+                padding: 8px;
+                margin: -8px;
+            }
+            
+            .todo-item:active {
+                background-color: rgba(0, 0, 0, 0.08);
+            }
+        }
+        
+        /* 减少动画偏好 */
+        @media (prefers-reduced-motion: reduce) {
+            .ink-stroke path {
+                transition: none;
+            }
+            
+            .ink-stroke.animating path {
+                animation: none;
+                stroke-dashoffset: 0;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen py-12 px-4">
@@ -68,7 +214,7 @@
         <!-- 主体内容 -->
         <div class="grid lg:grid-cols-2 items-start gap-16 lg:gap-30">
             <!-- 左侧输入区域 -->
-            <div class="bg-white p-8 border-2 border-dashed border-gray-300 shadow-lg max-w-md mx-auto">
+            <div class="bg-white p-8 border-2 border-dashed border-gray-300 shadow-lg w-full max-w-xl mx-auto lg:mx-0">
                 <h2 class="text-2xl font-bold mb-6 text-black">今日事项 · TODAY'S TODO</h2>
                 
                 <div id="todo-list" class="space-y-3 mb-6">
@@ -93,8 +239,8 @@
                 </div>
                 
                 <div class="flex gap-4 mb-6">
-                    <button id="add-btn" class="flex-1 bg-gray-100 text-black py-2 px-6 border-2 border-black rounded-xl hover:bg-gray-200 hover:shadow-md transition-all active:scale-95">+ 添加事项</button>
-                    <button id="print-btn" disabled class="flex-1 bg-black text-white py-2 px-6 border-2 border-black rounded-xl hover:bg-gray-800 hover:shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed disabled:border-gray-400 disabled:shadow-none transition-all active:scale-95">PRINT · 生成小票</button>
+                    <button id="add-btn" class="flex-1 bg-gray-100 text-black py-2 px-6 border-2 border-black rounded-xl hover:bg-gray-200 hover:shadow-md transition-all active:scale-95 whitespace-nowrap">+ 添加事项</button>
+                    <button id="print-btn" disabled class="flex-1 bg-black text-white py-2 px-6 border-2 border-black rounded-xl hover:bg-gray-800 hover:shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed disabled:border-gray-400 disabled:shadow-none transition-all active:scale-95 whitespace-nowrap">PRINT · 生成小票</button>
                 </div>
                 
                 <div class="text-xs text-gray-500 text-center">输入今日事项来生成你的生活小票</div>
@@ -122,93 +268,125 @@
                             <div>ONE DAY</div>
                         </div>
                         <div style="text-align: center; font-size: 12px; margin-bottom: 16px;">
-                            <div style="font-weight: bold; margin-bottom: 4px;">Cracks let the light in</div>
-                            <div style="color: rgb(75, 85, 99);">万物皆有裂痕，那是光照进来的地方</div>
+                            <div id="quote-line1" style="font-weight: bold; margin-bottom: 4px;">万物皆有裂痕</div>
+                            <div id="quote-line2" style="color: rgb(75, 85, 99);">那是光照进来的地方</div>
                         </div>
                         <div style="border-top: 1px dashed rgb(0, 0, 0); margin-bottom: 16px;"></div>
-                        <div style="display: flex; justify-content: center; margin-bottom: 16px;">
-                            <div class="barcode">
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 3 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 4 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 3 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 3 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 4 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 3 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 3 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 3 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
-                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="flex: 4 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
-                            </div>
+                        <div id="preview-barcode" style="display: flex; justify-content: center; margin-bottom: 16px;">
+                            <!-- 条形码将由 JavaScript 动态生成 -->
                         </div>
                         <div class="fade-out"></div>
                     </div>
                 </div>
             </div>
         </div>
+        
+        <!-- 我的收据区域 -->
+        <div id="my-receipts-section" class="mt-16 hidden">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-3xl font-bold text-black">我的收据 · MY RECEIPTS</h2>
+                <div id="receipt-count" class="text-sm text-gray-500">共 0 张</div>
+            </div>
+            <div id="receipts-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- 小票卡片将在这里动态生成 -->
+            </div>
+        </div>
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
+        // 存储生成的小票数据
+        let receipts = [];
+
+        // 中文语录数组 - 两句中文组成，小众精致，适合小票宽度
+        // 比例：30条长句 + 10句8字句子 = 40条
+        const quotes = [
+            // 长句（30条）
+            { line1: "在平凡的日子里", line2: "发现生活藏着的小确幸" },
+            { line1: "每一个清晨都是", line2: "重新开始的美好契机" },
+            { line1: "走过的每一步路", line2: "都在塑造更好的自己" },
+            { line1: "心若向阳无畏悲伤", line2: "保持热爱奔赴山海" },
+            { line1: "生活中的小困难", line2: "都是成长的必经之路" },
+            { line1: "珍惜当下的每一刻", line2: "因为它们不会重来" },
+            { line1: "带着感恩的心情", line2: "迎接每一天的到来" },
+            { line1: "在喧嚣的世界里", line2: "保持内心的宁静与平和" },
+            { line1: "每一次努力都不会", line2: "被时间辜负和遗忘" },
+            { line1: "生活需要仪式感", line2: "让平凡变得不再平凡" },
+            { line1: "无论顺境还是逆境", line2: "都要保持积极的心态" },
+            { line1: "与自己和解是", line2: "人生最重要的修行" },
+            { line1: "学会欣赏沿途的风景", line2: "而不仅仅是终点" },
+            { line1: "内心的力量足以", line2: "战胜外界的一切困难" },
+            { line1: "简单的生活也能", line2: "绽放出最绚丽的光彩" },
+            { line1: "保持对世界的好奇心", line2: "让生活充满无限可能" },
+            { line1: "每一个夜晚的沉淀", line2: "都是为了清晨更好的出发" },
+            { line1: "在忙碌的生活中", line2: "给自己留一点喘息的空间" },
+            { line1: "与人为善是最好的", line2: "人生修行方式" },
+            { line1: "学会放下不属于自己的", line2: "才能拥抱属于自己的" },
+            { line1: "生活的美好在于", line2: "发现平凡中的不平凡" },
+            { line1: "每一个微小的进步", line2: "都是值得庆祝的成就" },
+            { line1: "保持对生活的热爱", line2: "让每一天都充满意义" },
+            { line1: "在困境中保持希望", line2: "在顺境中保持谦逊" },
+            { line1: "生活是一场旅程", line2: "重要的是沿途的风景" },
+            { line1: "学会珍惜身边的人", line2: "因为相遇都是缘分" },
+            { line1: "内心的丰盈是", line2: "最珍贵的人生财富" },
+            { line1: "每一个今天的努力", line2: "都是明天成功的基石" },
+            { line1: "在生活的舞台上", line2: "做最真实的自己" },
+            { line1: "保持一颗感恩的心", line2: "让生活更加美好" },
+            // 8字句子（10条）
+            { line1: "愿你出走半生", line2: "归来仍是少年" },
+            { line1: "生活不是等待", line2: "暴风雨过去" },
+            { line1: "行到水穷处", line2: "坐看云起时" },
+            { line1: "人生如逆旅", line2: "我亦是行人" },
+            { line1: "生如夏花", line2: "死如秋叶" },
+            { line1: "星光不问", line2: "赶路人" },
+            { line1: "不以物喜", line2: "不以己悲" },
+            { line1: "凡是过往", line2: "皆为序章" },
+            { line1: "心有猛虎", line2: "细嗅蔷薇" },
+            { line1: "你若盛开", line2: "清风自来" }
+        ];
+
+        // 获取随机语录
+        function getRandomQuote() {
+            return quotes[Math.floor(Math.random() * quotes.length)];
+        }
+
+        // 更新预览区域的语录
+        function updateQuote() {
+            const quote = getRandomQuote();
+            document.getElementById('quote-line1').textContent = quote.line1;
+            document.getElementById('quote-line2').textContent = quote.line2;
+        }
+
+        // 从 localStorage 加载收据数据
+        function loadReceiptsFromStorage() {
+            try {
+                const stored = localStorage.getItem('lifeReceipts');
+                if (stored) {
+                    receipts = JSON.parse(stored);
+                    // 如果有保存的收据，显示"我的收据"区域并渲染
+                    if (receipts.length > 0) {
+                        document.getElementById('my-receipts-section').classList.remove('hidden');
+                        document.getElementById('receipt-count').textContent = `共 ${receipts.length} 张`;
+                        receipts.forEach(receipt => {
+                            addReceiptCard(receipt);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('加载收据数据失败:', error);
+                receipts = [];
+            }
+        }
+        
+        // 保存收据数据到 localStorage
+        function saveReceiptsToStorage() {
+            try {
+                localStorage.setItem('lifeReceipts', JSON.stringify(receipts));
+            } catch (error) {
+                console.error('保存收据数据失败:', error);
+            }
+        }
+        
         // 设置当前日期
         function setCurrentDate() {
             const today = new Date();
@@ -221,6 +399,136 @@
         
         // 初始化
         setCurrentDate();
+
+        // 页面加载时从 localStorage 读取收据数据
+        loadReceiptsFromStorage();
+
+        // 初始化预览区域的条形码
+        document.getElementById('preview-barcode').innerHTML = generateBarcodeHTML();
+        
+        // 生成条形码HTML - 基于种子生成唯一图案
+        function generateBarcodeHTML(seed = null) {
+            // 如果没有提供种子，使用当前时间戳
+            const barcodeSeed = seed || Date.now();
+
+            // 使用种子生成伪随机数序列
+            function pseudoRandom(seed) {
+                const x = Math.sin(seed) * 10000;
+                return x - Math.floor(x);
+            }
+
+            // 生成条形码图案数组（60个条）
+            const pattern = [];
+            let currentSeed = barcodeSeed;
+            for (let i = 0; i < 60; i++) {
+                // 生成1-4之间的随机宽度
+                currentSeed += 1;
+                const width = Math.floor(pseudoRandom(currentSeed) * 4) + 1;
+                pattern.push(width);
+            }
+
+            // 构建条形码HTML
+            let html = '<div style="display: flex; height: 45px; width: 140px; justify-content: center;">';
+            pattern.forEach((width, index) => {
+                // 根据索引交替黑白颜色（确保以黑色开头和结尾）
+                const isBlack = index % 2 === 0;
+                const color = isBlack ? 'rgb(0,0,0)' : 'rgb(255,255,255)';
+                html += `<div style="flex: ${width} 1 0%; background-color: ${color}; min-width: 1px;"></div>`;
+            });
+            html += '</div>';
+            return html;
+        }
+        
+        // 生成墨水笔划SVG - 简单的直线
+        function generateInkStrokeSVG() {
+            return `
+                <svg class="ink-stroke" viewBox="0 0 100 10" preserveAspectRatio="none">
+                    <path d="M0,5 L100,5" />
+                </svg>
+            `;
+        }
+        
+        // 生成小票卡片的HTML
+        function generateReceiptCardHTML(items, date, id, completedItems = []) {
+            const itemsHtml = items.map((item, index) => {
+                const isCompleted = completedItems.includes(index);
+                return `
+                    <div class="todo-item ${isCompleted ? 'completed' : ''}" 
+                         data-index="${index}" 
+                         data-receipt-id="${id}"
+                         style="margin-bottom: 8px; align-items: flex-start;">
+                        <div style="word-break: break-word; overflow-wrap: break-word; position: relative;">
+                            <span style="font-size: 12px; line-height: 1.5;">
+                                ${index + 1} 
+                                <span class="todo-text" style="position: relative; display: inline;">
+                                    ${item}
+                                    ${generateInkStrokeSVG()}
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            return `
+                <div class="receipt-card" data-id="${id}">
+                    <div style="text-align: center; margin-bottom: 24px;">
+                        <div style="font-size: 20px; font-weight: bold; margin-bottom: 4px; letter-spacing: 4px;">THE LIFE STORE</div>
+                        <div style="font-size: 12px; margin-bottom: 4px;">人生便利店</div>
+                        <div style="font-size: 12px;">DAILY LIFE RECEIPT</div>
+                    </div>
+                    <div style="border-top: 2px dashed rgb(0, 0, 0); margin-bottom: 16px;"></div>
+                    <div style="font-size: 12px; margin-bottom: 16px; text-align: center; font-weight: bold;">DATE: ${date}</div>
+                    <div style="border-top: 1px dashed rgb(0, 0, 0); margin-bottom: 16px;"></div>
+                    <div class="todo-list" style="margin-bottom: 16px;">
+                        ${itemsHtml}
+                    </div>
+                    <div style="border-top: 1px dashed rgb(0, 0, 0); margin-bottom: 16px;"></div>
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 16px;">
+                        <div>TOTAL:</div>
+                        <div>ONE DAY</div>
+                    </div>
+                    <div style="text-align: center; font-size: 12px; margin-bottom: 16px;">
+                        <div style="font-weight: bold; margin-bottom: 4px;">Cracks let the light in</div>
+                        <div style="color: rgb(75, 85, 99);">万物皆有裂痕，那是光照进来的地方</div>
+                    </div>
+                    <div style="border-top: 1px dashed rgb(0, 0, 0); margin-bottom: 16px;"></div>
+                    <div style="display: flex; justify-content: center; margin-bottom: 16px;">
+                        ${generateBarcodeHTML(id)}
+                    </div>
+                    <div style="text-align: center; font-size: 12px; color: rgb(107, 114, 128);">${date}</div>
+                </div>
+            `;
+        }
+        
+        // 下载图片功能
+        async function downloadReceiptImage(element, filename) {
+            try {
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                });
+                
+                // 转换为JPG格式
+                const imageData = canvas.toDataURL('image/jpeg', 0.95);
+                
+                // 创建下载链接
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = imageData;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                return imageData;
+            } catch (error) {
+                console.error('下载小票失败:', error);
+                alert('下载小票失败，请重试');
+                return null;
+            }
+        }
         
         // 添加事项按钮
         document.getElementById('add-btn').addEventListener('click', function() {
@@ -241,11 +549,18 @@
                 updatePrintButton();
                 updateReceipt();
             });
-            
+
             // 为新添加的输入框添加事件监听器
-            newItem.querySelector('input').addEventListener('input', function() {
+            const newInput = newItem.querySelector('input');
+            // 点击输入框时切换语录
+            newInput.addEventListener('focus', function() {
+                updateQuote();
+            });
+            // 输入文字时切换语录
+            newInput.addEventListener('input', function() {
                 updatePrintButton();
                 updateReceipt();
+                updateQuote();
             });
         });
         
@@ -260,9 +575,15 @@
         
         // 为所有输入框添加事件监听器
         document.querySelectorAll('input').forEach(input => {
+            // 点击输入框时切换语录
+            input.addEventListener('focus', function() {
+                updateQuote();
+            });
+            // 输入文字时切换语录
             input.addEventListener('input', function() {
                 updatePrintButton();
                 updateReceipt();
+                updateQuote();
             });
         });
         
@@ -295,9 +616,10 @@
                 let itemsHtml = '';
                 nonEmptyInputs.forEach((input, index) => {
                     itemsHtml += `
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
-                            <div>${input.value.trim()}</div>
-                            <div>✓</div>
+                        <div style="margin-bottom: 8px; align-items: flex-start;">
+                            <div style="word-break: break-word; overflow-wrap: break-word;">
+                                <div style="font-size: 12px; line-height: 1.5;">${input.value.trim()}</div>
+                            </div>
                         </div>
                     `;
                 });
@@ -306,10 +628,254 @@
         }
         
         // 生成小票按钮
-        document.getElementById('print-btn').addEventListener('click', function() {
-            // 这里可以添加打印功能或其他生成小票的逻辑
+        document.getElementById('print-btn').addEventListener('click', async function() {
+            const inputs = document.querySelectorAll('input');
+            const nonEmptyInputs = Array.from(inputs).filter(input => input.value.trim() !== '');
+            
+            if (nonEmptyInputs.length === 0) return;
+            
+            // 获取当前日期
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateString = `${year}-${month}-${day}`;
+            
+            // 获取事项列表
+            const items = nonEmptyInputs.map(input => input.value.trim());
+            
+            // 创建小票数据对象
+            const receiptData = {
+                id: Date.now(),
+                items: items,
+                date: dateString,
+                completedItems: [] // 存储已完成事项的索引
+            };
+            
+            // 添加到数组
+            receipts.push(receiptData);
+            
+            // 保存到 localStorage
+            saveReceiptsToStorage();
+            
+            // 显示"我的收据"区域
+            document.getElementById('my-receipts-section').classList.remove('hidden');
+            
+            // 更新小票数量
+            document.getElementById('receipt-count').textContent = `共 ${receipts.length} 张`;
+            
+            // 添加小票卡片到网格
+            addReceiptCard(receiptData);
+            
+            // 自动下载小票
+            const receiptElement = document.querySelector(`.receipt-card[data-id="${receiptData.id}"]`);
+            if (receiptElement) {
+                await downloadReceiptImage(receiptElement, `人生小票_${dateString}_${receiptData.id}.jpg`);
+            }
+            
+            // 清空输入框
+            document.querySelectorAll('input').forEach(input => {
+                input.value = '';
+            });
+            
+            // 更新按钮状态和小票预览
+            updatePrintButton();
             updateReceipt();
+            
+            // 滚动到"我的收据"区域
+            document.getElementById('my-receipts-section').scrollIntoView({ behavior: 'smooth' });
         });
+        
+        // 添加小票卡片（交互式UI形式）
+        function addReceiptCard(receipt) {
+            const receiptsGrid = document.getElementById('receipts-grid');
+            
+            const cardWrapper = document.createElement('div');
+            cardWrapper.className = 'receipt-thumbnail relative group cursor-pointer';
+            cardWrapper.setAttribute('data-id', receipt.id);
+            
+            // 生成卡片HTML - 传入completedItems
+            cardWrapper.innerHTML = generateReceiptCardHTML(receipt.items, receipt.date, receipt.id, receipt.completedItems || []);
+            
+            // 添加删除按钮
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-receipt-btn absolute -top-3 -right-3 w-8 h-8 bg-red-500 text-white rounded-full shadow-lg opacity-0 transition-all duration-300 flex items-center justify-center hover:bg-red-600 z-20';
+            deleteBtn.innerHTML = '✕';
+            deleteBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                deleteReceipt(receipt.id);
+            });
+            cardWrapper.appendChild(deleteBtn);
+            
+            // 点击卡片打开模态框
+            cardWrapper.addEventListener('click', function(e) {
+                // 如果点击的是待办事项，不打开模态框
+                if (e.target.closest('.todo-item')) {
+                    return;
+                }
+                showReceiptModal(receipt);
+            });
+            
+            // 为待办事项添加点击事件
+            const todoItems = cardWrapper.querySelectorAll('.todo-item');
+            todoItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleTodoItem(receipt.id, parseInt(this.dataset.index), this);
+                });
+            });
+            
+            receiptsGrid.appendChild(cardWrapper);
+        }
+        
+        // 删除小票
+        function deleteReceipt(id) {
+            receipts = receipts.filter(r => r.id !== id);
+            
+            // 保存到 localStorage
+            saveReceiptsToStorage();
+            
+            // 更新小票数量
+            document.getElementById('receipt-count').textContent = `共 ${receipts.length} 张`;
+            
+            // 如果没有小票了，隐藏"我的收据"区域
+            if (receipts.length === 0) {
+                document.getElementById('my-receipts-section').classList.add('hidden');
+            }
+            
+            // 重新渲染小票网格
+            renderReceiptsGrid();
+        }
+        
+        // 重新渲染小票网格
+        function renderReceiptsGrid() {
+            const receiptsGrid = document.getElementById('receipts-grid');
+            receiptsGrid.innerHTML = '';
+            
+            receipts.forEach(receipt => {
+                addReceiptCard(receipt);
+            });
+        }
+        
+        // 切换待办事项完成状态
+        function toggleTodoItem(receiptId, itemIndex, element) {
+            const receipt = receipts.find(r => r.id === receiptId);
+            if (!receipt) return;
+            
+            // 确保completedItems数组存在
+            if (!receipt.completedItems) {
+                receipt.completedItems = [];
+            }
+            
+            const isCompleted = receipt.completedItems.includes(itemIndex);
+            
+            if (isCompleted) {
+                // 取消完成
+                receipt.completedItems = receipt.completedItems.filter(i => i !== itemIndex);
+                element.classList.remove('completed');
+            } else {
+                // 标记完成
+                receipt.completedItems.push(itemIndex);
+                element.classList.add('completed');
+                
+                // 触发动画
+                const inkStroke = element.querySelector('.ink-stroke');
+                if (inkStroke) {
+                    inkStroke.classList.add('animating');
+                    // 动画结束后移除animating类
+                    setTimeout(() => {
+                        inkStroke.classList.remove('animating');
+                    }, 600);
+                }
+            }
+            
+            // 保存到localStorage
+            saveReceiptsToStorage();
+        }
+        
+        // 显示小票大图模态框
+        function showReceiptModal(receipt) {
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="relative flex flex-col items-center">
+                    <!-- 关闭按钮 -->
+                    <button class="close-modal absolute -top-12 right-0 w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors text-lg font-bold">✕</button>
+                    
+                    <!-- 下载按钮 -->
+                    <button class="download-modal-btn absolute -top-12 right-14 w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors" title="下载小票">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </button>
+                    
+                    <!-- 小票内容 -->
+                    <div class="modal-receipt-content">
+                        ${generateReceiptCardHTML(receipt.items, receipt.date, receipt.id, receipt.completedItems || [])}
+                    </div>
+                </div>
+            `;
+            
+            // 点击关闭按钮或背景关闭模态框
+            modal.querySelector('.close-modal').addEventListener('click', function() {
+                modal.remove();
+            });
+            
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+            
+            // 下载按钮事件
+            modal.querySelector('.download-modal-btn').addEventListener('click', async function() {
+                const receiptElement = modal.querySelector('.receipt-card');
+                if (receiptElement) {
+                    await downloadReceiptImage(receiptElement, `人生小票_${receipt.date}_${receipt.id}.jpg`);
+                }
+            });
+            
+            // 为模态框中的待办事项添加点击事件
+            const todoItems = modal.querySelectorAll('.todo-item');
+            todoItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const itemIndex = parseInt(this.dataset.index);
+                    const isCompleted = receipt.completedItems && receipt.completedItems.includes(itemIndex);
+                    
+                    // 更新数据
+                    if (!receipt.completedItems) {
+                        receipt.completedItems = [];
+                    }
+                    
+                    if (isCompleted) {
+                        receipt.completedItems = receipt.completedItems.filter(i => i !== itemIndex);
+                        this.classList.remove('completed');
+                    } else {
+                        receipt.completedItems.push(itemIndex);
+                        this.classList.add('completed');
+                        
+                        // 触发动画
+                        const inkStroke = this.querySelector('.ink-stroke');
+                        if (inkStroke) {
+                            inkStroke.classList.add('animating');
+                            setTimeout(() => {
+                                inkStroke.classList.remove('animating');
+                            }, 600);
+                        }
+                    }
+                    
+                    // 保存到localStorage
+                    saveReceiptsToStorage();
+                    
+                    // 同步更新主网格中的对应小票
+                    renderReceiptsGrid();
+                });
+            });
+            
+            document.body.appendChild(modal);
+        }
     </script>
 </body>
 </html>
