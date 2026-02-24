@@ -689,33 +689,61 @@
         // 添加小票卡片（交互式UI形式）
         function addReceiptCard(receipt) {
             const receiptsGrid = document.getElementById('receipts-grid');
-            
+
             const cardWrapper = document.createElement('div');
             cardWrapper.className = 'receipt-thumbnail relative group cursor-pointer';
             cardWrapper.setAttribute('data-id', receipt.id);
-            
+
             // 生成卡片HTML - 传入completedItems
             cardWrapper.innerHTML = generateReceiptCardHTML(receipt.items, receipt.date, receipt.id, receipt.completedItems || []);
-            
-            // 添加删除按钮
+
+            // 添加新增待办事项按钮（右上角）
+            const addTodoBtn = document.createElement('button');
+            addTodoBtn.className = 'add-todo-btn absolute -top-3 -right-3 w-8 h-8 bg-black text-white rounded-full shadow-lg opacity-0 transition-all duration-300 flex items-center justify-center hover:bg-gray-800 z-20';
+            addTodoBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>';
+            addTodoBtn.title = '添加待办事项';
+            addTodoBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showAddTodoInput(receipt.id, cardWrapper);
+            });
+            cardWrapper.appendChild(addTodoBtn);
+
+            // 添加删除按钮（在添加按钮下方，紧挨着）
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-receipt-btn absolute -top-3 -right-3 w-8 h-8 bg-red-500 text-white rounded-full shadow-lg opacity-0 transition-all duration-300 flex items-center justify-center hover:bg-red-600 z-20';
-            deleteBtn.innerHTML = '✕';
+            deleteBtn.className = 'delete-receipt-btn absolute -top-3 -right-3 translate-y-9 w-8 h-8 bg-gray-400 text-white rounded-full shadow-lg opacity-0 transition-all duration-300 flex items-center justify-center hover:bg-gray-500 z-20';
+            deleteBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
             deleteBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 deleteReceipt(receipt.id);
             });
             cardWrapper.appendChild(deleteBtn);
-            
+
+            // 鼠标悬停时显示按钮
+            cardWrapper.addEventListener('mouseenter', function() {
+                // 只有在没有输入框时才显示按钮
+                if (!cardWrapper.querySelector('.add-todo-input-wrapper')) {
+                    deleteBtn.classList.remove('opacity-0');
+                    addTodoBtn.classList.remove('opacity-0');
+                }
+            });
+
+            cardWrapper.addEventListener('mouseleave', function() {
+                // 只有在没有输入框时才隐藏按钮
+                if (!cardWrapper.querySelector('.add-todo-input-wrapper')) {
+                    deleteBtn.classList.add('opacity-0');
+                    addTodoBtn.classList.add('opacity-0');
+                }
+            });
+
             // 点击卡片打开模态框
             cardWrapper.addEventListener('click', function(e) {
-                // 如果点击的是待办事项，不打开模态框
-                if (e.target.closest('.todo-item')) {
+                // 如果点击的是待办事项或新增按钮，不打开模态框
+                if (e.target.closest('.todo-item') || e.target.closest('.add-todo-btn') || e.target.closest('.add-todo-input-wrapper')) {
                     return;
                 }
                 showReceiptModal(receipt);
             });
-            
+
             // 为待办事项添加点击事件
             const todoItems = cardWrapper.querySelectorAll('.todo-item');
             todoItems.forEach(item => {
@@ -724,7 +752,7 @@
                     toggleTodoItem(receipt.id, parseInt(this.dataset.index), this);
                 });
             });
-            
+
             receiptsGrid.appendChild(cardWrapper);
         }
         
@@ -761,14 +789,17 @@
         function toggleTodoItem(receiptId, itemIndex, element) {
             const receipt = receipts.find(r => r.id === receiptId);
             if (!receipt) return;
-            
+
+            // 如果是新增事项的输入框，不处理
+            if (element.classList.contains('add-todo-input-wrapper')) return;
+
             // 确保completedItems数组存在
             if (!receipt.completedItems) {
                 receipt.completedItems = [];
             }
-            
+
             const isCompleted = receipt.completedItems.includes(itemIndex);
-            
+
             if (isCompleted) {
                 // 取消完成
                 receipt.completedItems = receipt.completedItems.filter(i => i !== itemIndex);
@@ -777,7 +808,7 @@
                 // 标记完成
                 receipt.completedItems.push(itemIndex);
                 element.classList.add('completed');
-                
+
                 // 触发动画
                 const inkStroke = element.querySelector('.ink-stroke');
                 if (inkStroke) {
@@ -788,11 +819,135 @@
                     }, 600);
                 }
             }
-            
+
             // 保存到localStorage
             saveReceiptsToStorage();
         }
-        
+
+        // 为已生成的小票新增待办事项
+        function addNewTodoItem(receiptId, inputElement) {
+            const newItemText = inputElement.value.trim();
+            if (!newItemText) {
+                inputElement.focus();
+                return;
+            }
+
+            const receipt = receipts.find(r => r.id === receiptId);
+            if (!receipt) return;
+
+            // 添加新事项
+            receipt.items.push(newItemText);
+
+            // 初始化新事项的完成状态
+            if (!receipt.completedItems) {
+                receipt.completedItems = [];
+            }
+
+            // 保存到localStorage
+            saveReceiptsToStorage();
+
+            // 重新渲染小票网格
+            renderReceiptsGrid();
+        }
+
+        // 显示新增待办事项的输入框
+        function showAddTodoInput(receiptId, cardElement) {
+            const todoList = cardElement.querySelector('.todo-list');
+            if (!todoList) return;
+
+            // 检查是否已经存在输入框
+            if (cardElement.querySelector('.add-todo-input-wrapper')) {
+                return;
+            }
+
+            const inputWrapper = document.createElement('div');
+            inputWrapper.className = 'add-todo-input-wrapper flex gap-2 items-center mt-2';
+            inputWrapper.innerHTML = `
+                <input type="text"
+                    class="new-todo-input flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:border-green-500"
+                    placeholder="输入新事项，按回车添加..."
+                    style="font-size: 12px; line-height: 1.5;"
+                >
+                <button class="confirm-add-todo w-6 h-6 bg-black rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors">
+                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </button>
+                <button class="cancel-add-todo w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center hover:bg-gray-400 transition-colors">
+                    <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+
+            todoList.appendChild(inputWrapper);
+
+            const input = inputWrapper.querySelector('.new-todo-input');
+            const confirmBtn = inputWrapper.querySelector('.confirm-add-todo');
+            const cancelBtn = inputWrapper.querySelector('.cancel-add-todo');
+            const addTodoBtn = cardElement.querySelector('.add-todo-btn');
+            const deleteBtn = cardElement.querySelector('.delete-receipt-btn');
+
+            // 隐藏按钮
+            addTodoBtn.classList.add('opacity-0');
+            deleteBtn.classList.add('opacity-0');
+
+            // 关闭输入框的函数
+            function closeInput() {
+                inputWrapper.remove();
+                // 恢复按钮显示
+                addTodoBtn.classList.remove('opacity-0');
+                deleteBtn.classList.remove('opacity-0');
+            }
+
+            // 回车确认
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    if (input.value.trim()) {
+                        addNewTodoItem(receiptId, input);
+                    } else {
+                        closeInput();
+                    }
+                }
+            });
+
+            // Escape 键关闭
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeInput();
+                }
+            });
+
+            // 点击确认按钮
+            confirmBtn.addEventListener('click', function() {
+                if (input.value.trim()) {
+                    addNewTodoItem(receiptId, input);
+                } else {
+                    closeInput();
+                }
+            });
+
+            // 点击取消按钮
+            cancelBtn.addEventListener('click', function() {
+                closeInput();
+            });
+
+            // 失去焦点时，如果为空则关闭
+            input.addEventListener('blur', function() {
+                // 延迟检查，让点击确认/取消按钮的事件先执行
+                setTimeout(() => {
+                    if (document.activeElement !== input && document.activeElement !== confirmBtn && document.activeElement !== cancelBtn) {
+                        if (!input.value.trim()) {
+                            closeInput();
+                        }
+                    }
+                }, 100);
+            });
+
+            // 聚焦输入框
+            input.focus();
+        }
+
         // 显示小票大图模态框
         function showReceiptModal(receipt) {
             // 创建模态框
@@ -868,12 +1023,155 @@
                     
                     // 保存到localStorage
                     saveReceiptsToStorage();
-                    
+
                     // 同步更新主网格中的对应小票
                     renderReceiptsGrid();
                 });
             });
-            
+
+            // 为模态框添加新增待办事项按钮
+            const modalContent = modal.querySelector('.modal-receipt-content');
+            const receiptCard = modalContent.querySelector('.receipt-card');
+
+            // 创建新增待办事项按钮
+            const addBtnWrapper = document.createElement('div');
+            addBtnWrapper.className = 'flex justify-center mt-4';
+            addBtnWrapper.innerHTML = `
+                <button class="modal-add-todo-btn px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm">
+                    + 添加待办事项
+                </button>
+            `;
+            receiptCard.appendChild(addBtnWrapper);
+
+            // 隐藏初始按钮
+            addBtnWrapper.classList.add('hidden');
+
+            // 监听待办事项区域点击，显示添加按钮
+            const todoListArea = receiptCard.querySelector('.todo-list');
+            todoListArea.addEventListener('click', function(e) {
+                if (!e.target.closest('.add-todo-input-wrapper') && !e.target.closest('.modal-add-todo-btn')) {
+                    addBtnWrapper.classList.remove('hidden');
+                }
+            });
+
+            // 新增待办事项按钮点击事件
+            addBtnWrapper.querySelector('.modal-add-todo-btn').addEventListener('click', function(e) {
+                e.stopPropagation();
+
+                // 检查是否已有输入框
+                if (modal.querySelector('.add-todo-input-wrapper')) {
+                    return;
+                }
+
+                // 隐藏添加按钮
+                addBtnWrapper.classList.add('hidden');
+
+                const todoList = receiptCard.querySelector('.todo-list');
+                const inputWrapper = document.createElement('div');
+                inputWrapper.className = 'add-todo-input-wrapper flex gap-2 items-center mt-3';
+                inputWrapper.innerHTML = `
+                    <input type="text"
+                        class="new-todo-input flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-green-500"
+                        placeholder="输入新事项，按回车添加..."
+                    >
+                    <button class="confirm-add-todo w-8 h-8 bg-black rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </button>
+                    <button class="cancel-add-todo w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors">
+                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                `;
+
+                todoList.appendChild(inputWrapper);
+
+                const input = inputWrapper.querySelector('.new-todo-input');
+                const confirmBtn = inputWrapper.querySelector('.confirm-add-todo');
+                const cancelBtn = inputWrapper.querySelector('.cancel-add-todo');
+
+                // 关闭输入框的函数
+                function closeInput() {
+                    inputWrapper.remove();
+                    addBtnWrapper.classList.remove('hidden');
+                }
+
+                // 回车确认
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        if (input.value.trim()) {
+                            addTodoItemToReceipt();
+                        } else {
+                            closeInput();
+                        }
+                    }
+                });
+
+                // Escape 键关闭
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        closeInput();
+                    }
+                });
+
+                // 点击确认按钮
+                confirmBtn.addEventListener('click', function() {
+                    if (input.value.trim()) {
+                        addTodoItemToReceipt();
+                    } else {
+                        closeInput();
+                    }
+                });
+
+                // 点击取消按钮
+                cancelBtn.addEventListener('click', function() {
+                    closeInput();
+                });
+
+                // 失去焦点时，如果为空则关闭
+                input.addEventListener('blur', function() {
+                    setTimeout(() => {
+                        if (document.activeElement !== input && document.activeElement !== confirmBtn && document.activeElement !== cancelBtn) {
+                            if (!input.value.trim()) {
+                                closeInput();
+                            }
+                        }
+                    }, 100);
+                });
+
+                function addTodoItemToReceipt() {
+                    const newItemText = input.value.trim();
+                    if (!newItemText) {
+                        input.focus();
+                        return;
+                    }
+
+                    // 添加新事项
+                    receipt.items.push(newItemText);
+
+                    // 初始化新事项的完成状态
+                    if (!receipt.completedItems) {
+                        receipt.completedItems = [];
+                    }
+
+                    // 保存到localStorage
+                    saveReceiptsToStorage();
+
+                    // 关闭当前模态框
+                    modal.remove();
+
+                    // 重新渲染小票网格
+                    renderReceiptsGrid();
+
+                    // 重新打开模态框以显示更新后的小票
+                    showReceiptModal(receipts.find(r => r.id === receipt.id));
+                }
+
+                input.focus();
+            });
+
             document.body.appendChild(modal);
         }
     </script>
