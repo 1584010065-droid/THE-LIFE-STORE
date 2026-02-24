@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THE LIFE STORE - 人生小票生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+New:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #fdfbf7;
+        }
+        
+        .receipt {
+            width: 280px;
+            min-height: 450px;
+            font-family: 'Courier New', monospace;
+            background-color: white;
+            padding: 24px;
+            position: relative;
+        }
+        
+        .receipt-shadow {
+            position: absolute;
+            inset: 0;
+            background-color: black;
+            transform: rotate(1deg) scale(1.05);
+            opacity: 0.1;
+            z-index: -1;
+        }
+        
+        .barcode {
+            height: 45px;
+            width: 140px;
+            display: flex;
+        }
+        
+        .barcode div {
+            min-width: 1px;
+        }
+        
+        .fade-out {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background-color: white;
+            opacity: 0.5;
+        }
+        
+        input, button {
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-12 px-4">
+    <div class="max-w-7xl mx-auto">
+        <!-- 标题区域 -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-bold text-black mb-2">THE LIFE STORE</h1>
+            <p class="text-lg text-gray-600">人生小票生成器 · Life Receipt Generator</p>
+        </div>
+        
+        <!-- 主体内容 -->
+        <div class="grid lg:grid-cols-2 items-start gap-16 lg:gap-30">
+            <!-- 左侧输入区域 -->
+            <div class="bg-white p-8 border-2 border-dashed border-gray-300 shadow-lg max-w-md mx-auto">
+                <h2 class="text-2xl font-bold mb-6 text-black">今日事项 · TODAY'S TODO</h2>
+                
+                <div id="todo-list" class="space-y-3 mb-6">
+                    <div class="flex gap-3 items-center">
+                        <div class="flex-1">
+                            <input placeholder="事项 1" class="w-full px-4 py-2 border-2 border-black rounded-xl focus:outline-none focus:bg-gray-50 transition-colors" type="text">
+                        </div>
+                        <button class="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all text-xl delete-btn">✕</button>
+                    </div>
+                    <div class="flex gap-3 items-center">
+                        <div class="flex-1">
+                            <input placeholder="事项 2" class="w-full px-4 py-2 border-2 border-black rounded-xl focus:outline-none focus:bg-gray-50 transition-colors" type="text">
+                        </div>
+                        <button class="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all text-xl delete-btn">✕</button>
+                    </div>
+                    <div class="flex gap-3 items-center">
+                        <div class="flex-1">
+                            <input placeholder="事项 3" class="w-full px-4 py-2 border-2 border-black rounded-xl focus:outline-none focus:bg-gray-50 transition-colors" type="text">
+                        </div>
+                        <button class="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all text-xl delete-btn">✕</button>
+                    </div>
+                </div>
+                
+                <div class="flex gap-4 mb-6">
+                    <button id="add-btn" class="flex-1 bg-gray-100 text-black py-2 px-6 border-2 border-black rounded-xl hover:bg-gray-200 hover:shadow-md transition-all active:scale-95">+ 添加事项</button>
+                    <button id="print-btn" disabled class="flex-1 bg-black text-white py-2 px-6 border-2 border-black rounded-xl hover:bg-gray-800 hover:shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed disabled:border-gray-400 disabled:shadow-none transition-all active:scale-95">PRINT · 生成小票</button>
+                </div>
+                
+                <div class="text-xs text-gray-500 text-center">输入今日事项来生成你的生活小票</div>
+            </div>
+            
+            <!-- 右侧小票预览 -->
+            <div class="flex justify-center">
+                <div class="relative">
+                    <div class="receipt-shadow"></div>
+                    <div id="receipt" class="receipt">
+                        <div style="text-align: center; margin-bottom: 24px;">
+                            <div style="font-size: 20px; font-weight: bold; margin-bottom: 4px; letter-spacing: 4px;">THE LIFE STORE</div>
+                            <div style="font-size: 12px; margin-bottom: 4px;">人生便利店</div>
+                            <div style="font-size: 12px;">DAILY LIFE RECEIPT</div>
+                        </div>
+                        <div style="border-top: 2px dashed rgb(0, 0, 0); margin-bottom: 16px;"></div>
+                        <div style="font-size: 12px; margin-bottom: 16px; text-align: center; font-weight: bold;">DATE: <span id="current-date">2026-02-24</span></div>
+                        <div style="border-top: 1px dashed rgb(0, 0, 0); margin-bottom: 16px;"></div>
+                        <div id="receipt-items" style="margin-bottom: 16px;">
+                            <div style="text-align: center; color: rgb(107, 114, 128); font-size: 12px; padding: 32px 0px;">请添加今日事项...</div>
+                        </div>
+                        <div style="border-top: 1px dashed rgb(0, 0, 0); margin-bottom: 16px;"></div>
+                        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 16px;">
+                            <div>TOTAL:</div>
+                            <div>ONE DAY</div>
+                        </div>
+                        <div style="text-align: center; font-size: 12px; margin-bottom: 16px;">
+                            <div style="font-weight: bold; margin-bottom: 4px;">Cracks let the light in</div>
+                            <div style="color: rgb(75, 85, 99);">万物皆有裂痕，那是光照进来的地方</div>
+                        </div>
+                        <div style="border-top: 1px dashed rgb(0, 0, 0); margin-bottom: 16px;"></div>
+                        <div style="display: flex; justify-content: center; margin-bottom: 16px;">
+                            <div class="barcode">
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 3 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 4 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 3 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 3 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 4 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 3 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 3 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 3 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 2 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(0, 0, 0); min-width: 1px;"></div>
+                                <div style="flex: 1 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="flex: 4 1 0%; background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                                <div style="background-color: rgb(255, 255, 255); min-width: 1px;"></div>
+                            </div>
+                        </div>
+                        <div class="fade-out"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 设置当前日期
+        function setCurrentDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateString = `${year}-${month}-${day}`;
+            document.getElementById('current-date').textContent = dateString;
+        }
+        
+        // 初始化
+        setCurrentDate();
+        
+        // 添加事项按钮
+        document.getElementById('add-btn').addEventListener('click', function() {
+            const todoList = document.getElementById('todo-list');
+            const newItem = document.createElement('div');
+            newItem.className = 'flex gap-3 items-center';
+            newItem.innerHTML = `
+                <div class="flex-1">
+                    <input placeholder="事项 ${todoList.children.length + 1}" class="w-full px-4 py-2 border-2 border-black rounded-xl focus:outline-none focus:bg-gray-50 transition-colors" type="text">
+                </div>
+                <button class="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all text-xl delete-btn">✕</button>
+            `;
+            todoList.appendChild(newItem);
+            
+            // 为新添加的删除按钮添加事件监听器
+            newItem.querySelector('.delete-btn').addEventListener('click', function() {
+                newItem.remove();
+                updatePrintButton();
+                updateReceipt();
+            });
+            
+            // 为新添加的输入框添加事件监听器
+            newItem.querySelector('input').addEventListener('input', function() {
+                updatePrintButton();
+                updateReceipt();
+            });
+        });
+        
+        // 删除事项按钮
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.parentElement.remove();
+                updatePrintButton();
+                updateReceipt();
+            });
+        });
+        
+        // 为所有输入框添加事件监听器
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', function() {
+                updatePrintButton();
+                updateReceipt();
+            });
+        });
+        
+        // 更新生成小票按钮状态
+        function updatePrintButton() {
+            const inputs = document.querySelectorAll('input');
+            const hasValue = Array.from(inputs).some(input => input.value.trim() !== '');
+            const printBtn = document.getElementById('print-btn');
+            
+            if (hasValue) {
+                printBtn.disabled = false;
+                printBtn.classList.remove('bg-gray-400', 'cursor-not-allowed', 'border-gray-400', 'shadow-none');
+                printBtn.classList.add('bg-black', 'hover:bg-gray-800', 'hover:shadow-md');
+            } else {
+                printBtn.disabled = true;
+                printBtn.classList.remove('bg-black', 'hover:bg-gray-800', 'hover:shadow-md');
+                printBtn.classList.add('bg-gray-400', 'cursor-not-allowed', 'border-gray-400', 'shadow-none');
+            }
+        }
+        
+        // 更新小票内容
+        function updateReceipt() {
+            const inputs = document.querySelectorAll('input');
+            const receiptItems = document.getElementById('receipt-items');
+            const nonEmptyInputs = Array.from(inputs).filter(input => input.value.trim() !== '');
+            
+            if (nonEmptyInputs.length === 0) {
+                receiptItems.innerHTML = '<div style="text-align: center; color: rgb(107, 114, 128); font-size: 12px; padding: 32px 0px;">请添加今日事项...</div>';
+            } else {
+                let itemsHtml = '';
+                nonEmptyInputs.forEach((input, index) => {
+                    itemsHtml += `
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+                            <div>${input.value.trim()}</div>
+                            <div>✓</div>
+                        </div>
+                    `;
+                });
+                receiptItems.innerHTML = itemsHtml;
+            }
+        }
+        
+        // 生成小票按钮
+        document.getElementById('print-btn').addEventListener('click', function() {
+            // 这里可以添加打印功能或其他生成小票的逻辑
+            updateReceipt();
+        });
+    </script>
+</body>
+</html>
